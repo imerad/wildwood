@@ -1,12 +1,15 @@
+# Authors: Stephane Gaiffas <stephane.gaiffas@gmail.com>
+# License: BSD 3 clause
+
+"""
+This module contains some tools to grow a tree: mainly a Records dataclass and a grow
+function.
+Records is a last-in first-out stack of Record containing partial
+information about nodes that will be split or transformed in leaves.
+The grow function is the main entry point that grows the decision tree and performs
+aggregation.
 """
 
-C'est un C/C depuis pygbm
-
-This module contains the TreeGrower class.
-
-TreeGrowee builds a regression tree fitting a Newton-Raphson step, based on
-the gradients and hessians of the training data.
-"""
 from heapq import heappush, heappop
 import numpy as np
 from time import time
@@ -23,25 +26,169 @@ from ._splitting import (
 
 
 from ._tree import (
-    Records,
+    # Records,
     # Tree,
     add_node_tree,
     tree_resize,
-    push_node_record,
-    pop_node_record,
-    has_records,
+    # push_node_record,
+    # pop_node_record,
+    # has_records,
     print_tree,
-    print_records,
-    get_records,
+    # print_records,
+    # get_records,
     get_nodes,
     TREE_UNDEFINED,
 )
 from ._utils import njit, infinity, nb_size_t, nb_float32, log_sum_2_exp, nb_ssize_t
 # from ._tree import TREE_LEAF
-
+from ._utils import (
+    np_bool,
+    np_uint8,
+    np_size_t,
+    np_ssize_t,
+    nb_bool,
+    nb_size_t,
+    nb_ssize_t,
+    nb_uint8,
+    np_float32,
+    nb_float32,
+    max_size_t,
+    from_dtype,
+    njit,
+    jitclass,
+    resize,
+    resize2d,
+    log_sum_2_exp
+)
 
 INITIAL_STACK_SIZE = nb_size_t(10)
 
+
+
+
+spec_node_record = [
+    ("start_train", np_size_t),
+    ("end_train", np_size_t),
+    ("start_valid", np_size_t),
+    ("end_valid", np_size_t),
+    ("depth", np_size_t),
+    ("parent", np_ssize_t),
+    ("is_left", np_bool),
+    ("impurity", np_float32),
+    ("n_constant_features", np_size_t),
+]
+
+np_node_record = np.dtype(spec_node_record)
+nb_node_record = from_dtype(np_node_record)
+
+
+spec_records = [
+    ("capacity", nb_size_t),
+    ("top", nb_size_t),
+    ("stack", nb_node_record[::1]),
+]
+
+
+@jitclass(spec_records)
+class Records(object):
+    """
+    A simple LIFO (last in, first out) data structure to stack the nodes to split
+    during tree growing
+
+    Attributes
+    ----------
+    capacity : intp
+        The number of elements the stack can hold. If more is necessary then
+        self.stack_ is resized
+
+    top : intp
+        The number of elements currently on the stack.
+
+    stack_ : array of stack_record data types
+        The internal stack of records
+    """
+
+    def __init__(self, capacity):
+        self.capacity = capacity
+        self.top = nb_size_t(0)
+        self.stack = np.empty(capacity, dtype=np_node_record)
+
+
+@njit
+def push_node_record(
+    records,
+    start_train,
+    end_train,
+    start_valid,
+    end_valid,
+    depth,
+    parent,
+    is_left,
+    impurity,
+    n_constant_features,
+):
+    top = records.top
+    stack = records.stack
+    # Resize the stack if capacity is not enough
+    if top >= records.capacity:
+        records.capacity = nb_size_t(2 * records.capacity)
+        records.stack = resize(stack, records.capacity)
+
+    stack_top = records.stack[top]
+    stack_top["start_train"] = start_train
+    # print("start_train: ", start_train)
+    # print("stack_top['start_train']: ", stack_top["start_train"])
+    stack_top["end_train"] = end_train
+    stack_top["start_valid"] = start_valid
+    stack_top["end_valid"] = end_valid
+    stack_top["depth"] = depth
+    stack_top["parent"] = parent
+    stack_top["is_left"] = is_left
+    stack_top["impurity"] = impurity
+    stack_top["n_constant_features"] = n_constant_features
+
+    # print("end_valid: ", end_valid)
+    # print("stack_top['end_valid']: ", stack_top["end_valid"])
+
+    # We have one more record in the stack
+    records.top = top + nb_size_t(1)
+
+
+@njit
+def has_records(records):
+    # print("records.top: ", records.top)
+    return records.top <= nb_size_t(0)
+
+
+@njit
+def pop_node_record(records):
+    # print("================ Begin pop_node_record(records) ================")
+    top = records.top
+    # print("top: ", top)
+    stack = records.stack
+    # print("top: ", top)
+    # print("stack_: ", stack_)
+    # print("top - 1", top-1)
+    # print("np_size_t(top - 1):", np_size_t(top - 1))
+    stack_record = stack[np_size_t(top - 1)]
+    # print(stack_record)
+    records.top = nb_size_t(top - 1)
+    # print("stack.top: ", stack.top)
+    # print("pop_node_record(records):")
+    # print(stack_record)
+    # print("================ End   pop_node_record(records) ================")
+
+    return (
+        stack_record["start_train"],
+        stack_record["end_train"],
+        stack_record["start_valid"],
+        stack_record["end_valid"],
+        stack_record["depth"],
+        stack_record["parent"],
+        stack_record["is_left"],
+        stack_record["impurity"],
+        stack_record["n_constant_features"]
+    )
 
 
 @njit

@@ -32,331 +32,79 @@ from ._utils import get_type
 # TODO: on a vraiment besoin de tout ca dans un stack_record ?
 
 
-spec_node_record = [
-    ("start_train", np_size_t),
-    ("end_train", np_size_t),
-    ("start_valid", np_size_t),
-    ("end_valid", np_size_t),
-    ("depth", np_size_t),
-    ("parent", np_ssize_t),
-    ("is_left", np_bool),
-    ("impurity", np_float32),
-    ("n_constant_features", np_size_t),
-]
-
-np_node_record = np.dtype(spec_node_record)
-nb_node_record = from_dtype(np_node_record)
-
-
-spec_records = [
-    ("capacity", nb_size_t),
-    ("top", nb_size_t),
-    ("stack", nb_node_record[::1]),
-]
-
-
-@jitclass(spec_records)
-class Records(object):
-    """
-    A simple LIFO (last in, first out) data structure to stack the nodes to split
-    during tree growing
-
-    Attributes
-    ----------
-    capacity : intp
-        The number of elements the stack can hold. If more is necessary then
-        self.stack_ is resized
-
-    top : intp
-        The number of elements currently on the stack.
-
-    stack_ : array of stack_record data types
-        The internal stack of records
-    """
-
-    def __init__(self, capacity):
-        self.capacity = capacity
-        self.top = nb_size_t(0)
-        self.stack = np.empty(capacity, dtype=np_node_record)
-
-
-@njit
-def push_node_record(
-    records,
-    start_train,
-    end_train,
-    start_valid,
-    end_valid,
-    depth,
-    parent,
-    is_left,
-    impurity,
-    n_constant_features,
-):
-    top = records.top
-    stack = records.stack
-    # Resize the stack if capacity is not enough
-    if top >= records.capacity:
-        records.capacity = nb_size_t(2 * records.capacity)
-        records.stack = resize(stack, records.capacity)
-
-    stack_top = records.stack[top]
-    stack_top["start_train"] = start_train
-    # print("start_train: ", start_train)
-    # print("stack_top['start_train']: ", stack_top["start_train"])
-    stack_top["end_train"] = end_train
-    stack_top["start_valid"] = start_valid
-    stack_top["end_valid"] = end_valid
-    stack_top["depth"] = depth
-    stack_top["parent"] = parent
-    stack_top["is_left"] = is_left
-    stack_top["impurity"] = impurity
-    stack_top["n_constant_features"] = n_constant_features
-
-    # print("end_valid: ", end_valid)
-    # print("stack_top['end_valid']: ", stack_top["end_valid"])
-
-    # We have one more record in the stack
-    records.top = top + nb_size_t(1)
-
-
-@njit
-def has_records(records):
-    # print("records.top: ", records.top)
-    return records.top <= nb_size_t(0)
-
-
-@njit
-def pop_node_record(records):
-    # print("================ Begin pop_node_record(records) ================")
-    top = records.top
-    # print("top: ", top)
-    stack = records.stack
-    # print("top: ", top)
-    # print("stack_: ", stack_)
-    # print("top - 1", top-1)
-    # print("np_size_t(top - 1):", np_size_t(top - 1))
-    stack_record = stack[np_size_t(top - 1)]
-    # print(stack_record)
-    records.top = nb_size_t(top - 1)
-    # print("stack.top: ", stack.top)
-    # print("pop_node_record(records):")
-    # print(stack_record)
-    # print("================ End   pop_node_record(records) ================")
-
-    return (
-        stack_record["start_train"],
-        stack_record["end_train"],
-        stack_record["start_valid"],
-        stack_record["end_valid"],
-        stack_record["depth"],
-        stack_record["parent"],
-        stack_record["is_left"],
-        stack_record["impurity"],
-        stack_record["n_constant_features"]
-    )
-
-
-@njit
-def print_records(records):
-    # s = "Records("
-    # s += "capacity={capacity}".format(capacity=records.capacity)
-    # s += ", top={top}".format(top=records.top)
-    # s += ")"
-    # print(s)
-    # print("Records")
-    print("****************************************************************")
-    print("| Records(capacity=", records.capacity, ", top=", records.top, ")")
-    top = 0
-    for i in range(records.top):
-        print("|", records.stack[i])
-    print("****************************************************************")
-    # for record in records.stack:
-    #     print(record)
-
-
-def get_records(records):
-    import pandas as pd
-
-    stack = records.stack
-    columns = [col_name for col_name, _ in spec_node_record]
-    # columns = ["left_child"]
-    return pd.DataFrame.from_records(
-        (
-            tuple(node[col] for col in columns)
-            for i, node in enumerate(stack)
-            if i < records.top
-        ),
-        columns=columns,
-    )
-
-
 
 
 # @njit
-# def set_node_tree(nodes, idx, node):
-#     """
-#     Set a node in an array of nodes at index idx
-#
-#     Parameters
-#     ----------
-#     nodes : array of np_node
-#         Array containing the nodes in the tree.
-#
-#     idx : intp
-#         Destination index of the node.
-#
-#     node : NodeTree
-#         The node to be inserted.
-#     """
-#     node_dtype = nodes[idx]
-#     if idx != node.node_id:
-#         raise ValueError("idx != node.node_id")
-#
-#     node_dtype["node_id"] = node.node_id
-#     node_dtype["parent"] = node.parent
-#     node_dtype["left_child"] = node.left_child
-#     node_dtype["right_child"] = node.right_child
-#     node_dtype["depth"] = node.depth
-#     node_dtype["feature"] = node.feature
-#     node_dtype["threshold"] = node.threshold
-#     node_dtype["bin_threshold"] = node.bin_threshold
-#     node_dtype["impurity"] = node.impurity
-#     node_dtype["n_samples_train"] = node.n_samples_train
-#     node_dtype["n_samples_valid"] = node.n_samples_valid
-#     node_dtype["weighted_n_samples_train"] = node.weighted_n_samples_train
-#     node_dtype["weighted_n_samples_valid"] = node.weighted_n_samples_valid
-#     node_dtype["start_train"] = node.start_train
-#     node_dtype["end_train"] = node.end_train
-#     node_dtype["start_valid"] = node.start_valid
-#     node_dtype["end_valid"] = node.end_valid
-#     node_dtype["is_left"] = node.is_left
-#     node_dtype["loss_valid"] = node.loss_valid
-#     node_dtype["log_weight_tree"] = node.log_weight_tree
+# def print_records(records):
+#     # s = "Records("
+#     # s += "capacity={capacity}".format(capacity=records.capacity)
+#     # s += ", top={top}".format(top=records.top)
+#     # s += ")"
+#     # print(s)
+#     # print("Records")
+#     print("****************************************************************")
+#     print("| Records(capacity=", records.capacity, ", top=", records.top, ")")
+#     top = 0
+#     for i in range(records.top):
+#         print("|", records.stack[i])
+#     print("****************************************************************")
+#     # for record in records.stack:
+#     #     print(record)
 
-# @njit
-# def get_node_tree(nodes, idx):
-#     """
-#     Get node at index idx
+
+# def get_records(records):
+#     import pandas as pd
 #
-#     Parameters
-#     ----------
-#     nodes : array of np_node
-#         Array containing the nodes in the tree.
-#
-#     idx : intp
-#         Index of the node to retrieve.
-#
-#     Returns
-#     -------
-#     output : NodeTree
-#         Retrieved node
-#     """
-#     # It's a jitclass object
-#     node = nodes[idx]
-#     return NodeTree(
-#         node["node_id"],
-#         node["parent"],
-#         node["left_child"],
-#         node["right_child"],
-#         node["depth"],
-#         node["feature"],
-#         node["threshold"],
-#         node["bin_threshold"],
-#         node["impurity"],
-#         node["n_samples"],
-#         node["weighted_n_samples"],
-#         node["start_train"],
-#         node["end_train"],
-#         node["start_valid"],
-#         node["end_valid"],
-#         node["is_left"],
+#     stack = records.stack
+#     columns = [col_name for col_name, _ in spec_node_record]
+#     # columns = ["left_child"]
+#     return pd.DataFrame.from_records(
+#         (
+#             tuple(node[col] for col in columns)
+#             for i, node in enumerate(stack)
+#             if i < records.top
+#         ),
+#         columns=columns,
 #     )
 
+
+
+
 #
-# # TODO: On a pas vraiment besoin de NodeTree en fait non ?
-# @jitclass(spec_node_tree)
-# class NodeTree(object):
-#     def __init__(
-#         self,
-#         node_id,
-#         parent,
-#         left_child,
-#         right_child,
-#         depth,
-#         feature,
-#         threshold,
-#         bin_threshold,
-#         impurity,
-#         n_samples_train,
-#         n_samples_valid,
-#         weighted_n_samples_train,
-#         weighted_n_samples_valid,
-#         start_train,
-#         end_train,
-#         start_valid,
-#         end_valid,
-#         is_left,
-#         loss_valid,
-#         log_weight_tree
-#     ):
-#         self.node_id = node_id
-#         self.parent = parent
-#         self.left_child = left_child
-#         self.right_child = right_child
-#         self.depth = depth
-#         self.feature = feature
-#         self.threshold = threshold
-#         self.bin_threshold = bin_threshold
-#         self.impurity = impurity
-#         self.n_samples_train = n_samples_train
-#         self.n_samples_valid = n_samples_valid
-#         self.weighted_n_samples_train = weighted_n_samples_train
-#         self.weighted_n_samples_valid = weighted_n_samples_valid
+# @njit
+# def print_node_tree(node):
+#     node_id = node["node_id"]
+#     parent = node["parent"]
+#     left_child = node["left_child"]
+#     right_child = node["right_child"]
+#     depth = node["depth"]
+#     feature = node["feature"]
+#     threshold = node["threshold"]
+#     bin_threshold = node["bin_threshold"]
+#     impurity = node["impurity"]
 #
-#         self.start_train = start_train
-#         self.end_train = end_train
-#         self.start_valid = start_valid
-#         self.end_valid = end_valid
-#         self.is_left = is_left
-#         self.loss_valid = loss_valid
-#         self.log_weight_tree = log_weight_tree
-
-
-@njit
-def print_node_tree(node):
-    node_id = node["node_id"]
-    parent = node["parent"]
-    left_child = node["left_child"]
-    right_child = node["right_child"]
-    depth = node["depth"]
-    feature = node["feature"]
-    threshold = node["threshold"]
-    bin_threshold = node["bin_threshold"]
-    impurity = node["impurity"]
-
-    n_samples_train = node["n_samples_train"]
-    n_samples_valid = node["n_samples_valid"]
-    weighted_n_samples_train = node["weighted_n_samples_train"]
-    weighted_n_samples_valid = node["weighted_n_samples_valid"]
-
-    s = "Node("
-    s += "node_id: {node_id}".format(node_id=node_id)
-    s += ", parent: {parent}".format(parent=parent)
-    s += ", left_child: {left_child}".format(left_child=left_child)
-    s += ", right_child: {right_child}".format(right_child=right_child)
-    s += ", depth: {depth}".format(depth=depth)
-    s += ", feature: {feature}:".format(feature=feature)
-    s += ", bin_threshold: {bin_threshold}".format(bin_threshold=bin_threshold)
-    s += ", n_samples_train: {n_samples_train}".format(n_samples_train=n_samples_train)
-    s += ", n_samples_valid: {n_samples_valid}".format(n_samples_valid=n_samples_valid)
-    s += ", weighted_n_samples_train: {weighted_n_samples_train}".format(
-        weighted_n_samples_train=weighted_n_samples_train
-    )
-    # s += ", weighted_n_samples_valid: {weighted_n_samples_valid}:".format(
-    #     weighted_n_samples_valid=weighted_n_samples_valid
-    # )
-    print(s)
+#     n_samples_train = node["n_samples_train"]
+#     n_samples_valid = node["n_samples_valid"]
+#     weighted_n_samples_train = node["weighted_n_samples_train"]
+#     weighted_n_samples_valid = node["weighted_n_samples_valid"]
+#
+#     s = "Node("
+#     s += "node_id: {node_id}".format(node_id=node_id)
+#     s += ", parent: {parent}".format(parent=parent)
+#     s += ", left_child: {left_child}".format(left_child=left_child)
+#     s += ", right_child: {right_child}".format(right_child=right_child)
+#     s += ", depth: {depth}".format(depth=depth)
+#     s += ", feature: {feature}:".format(feature=feature)
+#     s += ", bin_threshold: {bin_threshold}".format(bin_threshold=bin_threshold)
+#     s += ", n_samples_train: {n_samples_train}".format(n_samples_train=n_samples_train)
+#     s += ", n_samples_valid: {n_samples_valid}".format(n_samples_valid=n_samples_valid)
+#     s += ", weighted_n_samples_train: {weighted_n_samples_train}".format(
+#         weighted_n_samples_train=weighted_n_samples_train
+#     )
+#     # s += ", weighted_n_samples_valid: {weighted_n_samples_valid}:".format(
+#     #     weighted_n_samples_valid=weighted_n_samples_valid
+#     # )
+#     print(s)
 
 
 IS_FIRST = 1
