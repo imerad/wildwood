@@ -9,6 +9,10 @@
 
 # TODO
 
+Mes modifs ont cassé la parallelisation (je ne comprends pas pourquoi) et il y a des
+ random crashs... La version qui marche est dans working. Partir de cette branche et
+  incorporer progressivement mes modifs dedans
+
 - Work on the _node.py module
 
 - Y'a un bug quand step > 1.0 ? Bizarre ? overflow ou autre chose ?
