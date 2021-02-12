@@ -27,11 +27,13 @@ from ._splitting import (
 
 from ._tree import (
     add_node_tree,
+    print_tree,
     tree_resize,
+    get_nodes,
     TREE_UNDEFINED,
 )
 
-# from ._utils import infinity, nb_size_t, nb_float32, log_sum_2_exp, nb_ssize_t
+from ._utils import infinity, nb_size_t, nb_float32, log_sum_2_exp, nb_ssize_t
 
 # from ._tree import TREE_LEAF
 from ._utils import (
@@ -47,9 +49,9 @@ from ._utils import (
     np_float32,
     nb_float32,
     max_size_t,
-    # from_dtype,
-    # njit,
-    # jitclass,
+    from_dtype,
+    njit,
+    jitclass,
     resize,
     resize2d,
     log_sum_2_exp,
