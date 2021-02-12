@@ -43,6 +43,7 @@ from ._tree import (
 )
 
 from ._utils import infinity, nb_size_t, nb_float32, log_sum_2_exp, nb_ssize_t
+
 # from ._tree import TREE_LEAF
 from ._utils import (
     np_bool,
@@ -61,23 +62,25 @@ from ._utils import (
     jitclass,
     resize,
     resize2d,
-    log_sum_2_exp
+    log_sum_2_exp,
 )
 
 INITIAL_STACK_SIZE = uintp(10)
 
 
-record_dtype = np.dtype([
-    ("start_train", np.uintp),
-    ("end_train", np.uintp),
-    ("start_valid", np.uintp),
-    ("end_valid", np.uintp),
-    ("depth", np.uintp),
-    ("parent", np.intp),
-    ("is_left", np.bool),
-    ("impurity", np.float32),
-    ("n_constant_features", np.uintp),
-])
+record_dtype = np.dtype(
+    [
+        ("start_train", np.uintp),
+        ("end_train", np.uintp),
+        ("start_valid", np.uintp),
+        ("end_valid", np.uintp),
+        ("depth", np.uintp),
+        ("parent", np.intp),
+        ("is_left", np.bool),
+        ("impurity", np.float32),
+        ("n_constant_features", np.uintp),
+    ]
+)
 
 record_type = from_dtype(record_dtype)
 
@@ -91,27 +94,31 @@ records_type = [
 
 @jitclass(records_type)
 class Records(object):
-    """
-    A simple LIFO (last in, first out) data structure to stack the nodes to split
-    during tree growing
+    """A simple LIFO (last in, first out) stack containing partial information about
+    the nodes to be later split or transformed into leaves.
 
     Attributes
     ----------
-    capacity : intp
+    capacity : int
         The number of elements the stack can hold. If more is necessary then
-        self.stack_ is resized
+        self.stack is resized
 
-    top : intp
-        The number of elements currently on the stack.
+    top : int
+        The number of elements currently on the stack
 
-    stack_ : array of stack_record data types
-        The internal stack of records
+    stack : ndarray
+        An array of shape (capacity,) and record_dtype dtype containing the
+        current data in the stack
     """
 
     def __init__(self, capacity):
         self.capacity = capacity
         self.top = 0
         self.stack = np.empty(capacity, dtype=record_dtype)
+
+
+RecordsType = get_type(Records)
+
 
 
 @njit
@@ -187,7 +194,7 @@ def pop_node_record(records):
         stack_record["parent"],
         stack_record["is_left"],
         stack_record["impurity"],
-        stack_record["n_constant_features"]
+        stack_record["n_constant_features"],
     )
 
 
