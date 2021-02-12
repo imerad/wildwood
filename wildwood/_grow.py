@@ -13,7 +13,6 @@ aggregation.
 # from heapq import heappush, heappop
 import numpy as np
 from numba import jit, njit, from_dtype, void, boolean, intp, uintp, float32
-# from numba.types import Tuple
 from numba.experimental import jitclass
 
 
@@ -31,17 +30,13 @@ from ._tree import (
     TREE_UNDEFINED,
 )
 
-# from ._utils import infinity, nb_size_t, nb_float32, log_sum_2_exp, nb_ssize_t
-
-# from ._tree import TREE_LEAF
 from ._utils import (
     get_type,
     nb_ssize_t,
-    from_dtype,
-    njit,
-    jitclass,
+    # from_dtype,
+    # njit,
+    # jitclass,
     resize,
-    # resize2d,
     log_sum_2_exp,
 )
 
@@ -177,7 +172,7 @@ def pop_node_record(records):
     )
 
 
-@njit
+@njit(fastmath=False, nogil=True, cache=False, boundscheck=False)
 def grow(tree, tree_context, node_context):
     # print("**** Inside grow")
 
