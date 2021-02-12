@@ -36,22 +36,12 @@ from ._tree import (
 # from ._tree import TREE_LEAF
 from ._utils import (
     get_type,
-    np_bool,
-    np_uint8,
-    np_size_t,
-    np_ssize_t,
-    nb_bool,
-    nb_size_t,
     nb_ssize_t,
-    nb_uint8,
-    np_float32,
-    nb_float32,
-    max_size_t,
     from_dtype,
     njit,
     jitclass,
     resize,
-    resize2d,
+    # resize2d,
     log_sum_2_exp,
 )
 
