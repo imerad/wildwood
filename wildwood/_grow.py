@@ -71,17 +71,17 @@ INITIAL_STACK_SIZE = uintp(10)
 
 record_dtype = np.dtype(
     [
+        ("parent", np.uintp),
+        ("depth", np.uintp),
+        ("is_left", np.bool),
+        ("impurity", np.float32),
         ("start_train", np.uintp),
         ("end_train", np.uintp),
         ("start_valid", np.uintp),
         ("end_valid", np.uintp),
-        ("depth", np.uintp),
-        ("parent", np.intp),
-        ("is_left", np.bool),
-        ("impurity", np.float32),
-        ("n_constant_features", np.uintp),
     ]
 )
+
 
 record_type = from_dtype(record_dtype)
 
@@ -159,12 +159,6 @@ def push_node_record(
 
     # We have one more record in the stack
     records.top = top + uintp(1)
-
-
-# @njit
-# def has_records(records):
-#     # print("records.top: ", records.top)
-#     return records.top <= uintp(0)
 
 
 @jit(boolean(RecordsType), nopython=True, nogil=True)
