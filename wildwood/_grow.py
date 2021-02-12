@@ -31,7 +31,7 @@ from ._tree import (
     TREE_UNDEFINED,
 )
 
-from ._utils import infinity, nb_size_t, nb_float32, log_sum_2_exp, nb_ssize_t
+# from ._utils import infinity, nb_size_t, nb_float32, log_sum_2_exp, nb_ssize_t
 
 # from ._tree import TREE_LEAF
 from ._utils import (
