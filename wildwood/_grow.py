@@ -27,9 +27,7 @@ from ._splitting import (
 
 from ._tree import (
     add_node_tree,
-    print_tree,
     tree_resize,
-    get_nodes,
     TREE_UNDEFINED,
 )
 
