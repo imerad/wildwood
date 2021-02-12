@@ -10,18 +10,20 @@ The grow function is the main entry point that grows the decision tree and perfo
 aggregation.
 """
 
-from heapq import heappush, heappop
+# from heapq import heappush, heappop
 import numpy as np
-from time import time
+from numba import jit, njit, from_dtype, void, boolean, intp, uintp, float32
+from numba.types import Tuple
+from numba.experimental import jitclass
+
+
+# from time import time
 
 from ._node import NodeContext, compute_node_context
 
 from ._splitting import (
     find_node_split,
     split_indices,
-    # split_indices,
-    # find_node_split,
-    # find_node_split_subtraction,
 )
 
 
@@ -39,7 +41,8 @@ from ._tree import (
     get_nodes,
     TREE_UNDEFINED,
 )
-from ._utils import njit, infinity, nb_size_t, nb_float32, log_sum_2_exp, nb_ssize_t
+
+from ._utils import infinity, nb_size_t, nb_float32, log_sum_2_exp, nb_ssize_t
 # from ._tree import TREE_LEAF
 from ._utils import (
     np_bool,
@@ -61,35 +64,32 @@ from ._utils import (
     log_sum_2_exp
 )
 
-INITIAL_STACK_SIZE = nb_size_t(10)
+INITIAL_STACK_SIZE = uintp(10)
 
 
+record_dtype = np.dtype([
+    ("start_train", np.uintp),
+    ("end_train", np.uintp),
+    ("start_valid", np.uintp),
+    ("end_valid", np.uintp),
+    ("depth", np.uintp),
+    ("parent", np.intp),
+    ("is_left", np.bool),
+    ("impurity", np.float32),
+    ("n_constant_features", np.uintp),
+])
+
+record_type = from_dtype(record_dtype)
 
 
-spec_node_record = [
-    ("start_train", np_size_t),
-    ("end_train", np_size_t),
-    ("start_valid", np_size_t),
-    ("end_valid", np_size_t),
-    ("depth", np_size_t),
-    ("parent", np_ssize_t),
-    ("is_left", np_bool),
-    ("impurity", np_float32),
-    ("n_constant_features", np_size_t),
-]
-
-np_node_record = np.dtype(spec_node_record)
-nb_node_record = from_dtype(np_node_record)
-
-
-spec_records = [
-    ("capacity", nb_size_t),
-    ("top", nb_size_t),
-    ("stack", nb_node_record[::1]),
+records_type = [
+    ("capacity", uintp),
+    ("top", intp),
+    ("stack", record_type[::1]),
 ]
 
 
-@jitclass(spec_records)
+@jitclass(records_type)
 class Records(object):
     """
     A simple LIFO (last in, first out) data structure to stack the nodes to split
@@ -110,8 +110,8 @@ class Records(object):
 
     def __init__(self, capacity):
         self.capacity = capacity
-        self.top = nb_size_t(0)
-        self.stack = np.empty(capacity, dtype=np_node_record)
+        self.top = 0
+        self.stack = np.empty(capacity, dtype=record_dtype)
 
 
 @njit
