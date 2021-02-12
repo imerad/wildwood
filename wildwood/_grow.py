@@ -13,7 +13,7 @@ aggregation.
 # from heapq import heappush, heappop
 import numpy as np
 from numba import jit, njit, from_dtype, void, boolean, intp, uintp, float32
-from numba.types import Tuple
+# from numba.types import Tuple
 from numba.experimental import jitclass
 
 
@@ -241,16 +241,16 @@ def grow(tree, tree_context, node_context):
     # print(records)
 
     # Let us first define all the attributes of root
-    start_train = nb_size_t(0)
+    start_train = uintp(0)
 
-    end_train = nb_size_t(n_samples_train)
-    start_valid = nb_size_t(0)
-    end_valid = nb_size_t(n_samples_valid)
-    depth = nb_size_t(0)
+    end_train = uintp(n_samples_train)
+    start_valid = uintp(0)
+    end_valid = uintp(n_samples_valid)
+    depth = uintp(0)
     # root as no parent
     parent = TREE_UNDEFINED
     is_left = False
-    impurity = infinity
+    impurity = np.inf
     n_constant_features = 0
 
     # print("start_train:", start_train)
@@ -520,7 +520,7 @@ def grow(tree, tree_context, node_context):
 
     aggregation = tree_context.aggregation
 
-    step = nb_float32(1.0)
+    step = float32(1.0)
     # Since the tree is grown in a depth-first fashion, we know that if we iterate
     # through the nodes in reverse order, we'll always iterate over childs before
     # iteration over parents.
