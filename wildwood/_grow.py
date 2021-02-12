@@ -524,8 +524,8 @@ def grow(tree, tree_context, node_context):
             else:
                 # If the node is not a leaf, then we apply context tree weighting
                 weight = step * node["loss_valid"]
-                left_child = nb_ssize_t(node["left_child"])
-                right_child = nb_ssize_t(node["right_child"])
+                left_child = intp(node["left_child"])
+                right_child = intp(node["right_child"])
                 # print("left_child: ", left_child, ", right_child: ", right_child)
                 log_weight_tree_left = tree.nodes[left_child]["log_weight_tree"]
                 log_weight_tree_right = tree.nodes[right_child]["log_weight_tree"]
