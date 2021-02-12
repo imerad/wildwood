@@ -46,6 +46,7 @@ from ._utils import infinity, nb_size_t, nb_float32, log_sum_2_exp, nb_ssize_t
 
 # from ._tree import TREE_LEAF
 from ._utils import (
+    get_type,
     np_bool,
     np_uint8,
     np_size_t,
@@ -118,7 +119,6 @@ class Records(object):
 
 
 RecordsType = get_type(Records)
-
 
 
 @njit
