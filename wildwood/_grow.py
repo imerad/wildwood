@@ -138,7 +138,7 @@ def push_node_record(
     stack = records.stack
     # Resize the stack if capacity is not enough
     if top >= records.capacity:
-        records.capacity = nb_size_t(2 * records.capacity)
+        records.capacity = uintp(2 * records.capacity)
         records.stack = resize(stack, records.capacity)
 
     stack_top = records.stack[top]
@@ -158,13 +158,18 @@ def push_node_record(
     # print("stack_top['end_valid']: ", stack_top["end_valid"])
 
     # We have one more record in the stack
-    records.top = top + nb_size_t(1)
+    records.top = top + uintp(1)
 
 
-@njit
+# @njit
+# def has_records(records):
+#     # print("records.top: ", records.top)
+#     return records.top <= uintp(0)
+
+
+@jit(boolean(RecordsType), nopython=True, nogil=True)
 def has_records(records):
-    # print("records.top: ", records.top)
-    return records.top <= nb_size_t(0)
+    return records.top <= 0
 
 
 @njit
@@ -177,9 +182,9 @@ def pop_node_record(records):
     # print("stack_: ", stack_)
     # print("top - 1", top-1)
     # print("np_size_t(top - 1):", np_size_t(top - 1))
-    stack_record = stack[np_size_t(top - 1)]
+    stack_record = stack[top - 1]
     # print(stack_record)
-    records.top = nb_size_t(top - 1)
+    records.top -= 1
     # print("stack.top: ", stack.top)
     # print("pop_node_record(records):")
     # print(stack_record)
