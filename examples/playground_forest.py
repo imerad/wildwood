@@ -23,7 +23,7 @@ from sklearn.metrics import roc_auc_score, log_loss
 
 sys.path.extend([".", ".."])
 
-from wildwood.forest import ForestBinaryClassifier
+from wildwood.forest import ForestClassifier
 
 
 @st.cache
@@ -156,7 +156,7 @@ def fit_forest(
         "step": step,
         "dirichlet": dirichlet,
     }
-    clf = ForestBinaryClassifier(**clf_kwargs)
+    clf = ForestClassifier(**clf_kwargs)
     clf.fit(X_train, y_train)
     return clf
 

@@ -11,7 +11,7 @@ from abc import abstractmethod
 import numpy as np
 
 from sklearn.base import BaseEstimator
-from sklearn.base import ClassifierMixin
+from sklearn.base import ClassifierMixin, RegressorMixin
 from sklearn.base import MultiOutputMixin
 from sklearn.utils.validation import check_is_fitted
 
@@ -21,18 +21,7 @@ from ._tree_context import TreeContext
 from ._tree import Tree, get_nodes, tree_predict_proba
 
 
-# =============================================================================
-# Base decision tree
-# =============================================================================
-
-
-class TreeBase(MultiOutputMixin, BaseEstimator, metaclass=ABCMeta):
-    """Base class for decision trees.
-
-    Warning: This class should not be used directly.
-    Use derived classes instead.
-    """
-
+class TreeBase(BaseEstimator, metaclass=ABCMeta):
     @abstractmethod
     def __init__(
         self,
@@ -42,13 +31,12 @@ class TreeBase(MultiOutputMixin, BaseEstimator, metaclass=ABCMeta):
         loss,
         step,
         aggregation,
-        dirichlet,
         max_depth,
         min_samples_split,
         min_samples_leaf,
-        categorical_features=None,
+        categorical_features,
         max_features,
-        random_state=None,
+        random_state,
         verbose=0,
     ):
         self._tree = None
@@ -59,7 +47,6 @@ class TreeBase(MultiOutputMixin, BaseEstimator, metaclass=ABCMeta):
         self.loss = loss
         self.step = step
         self.aggregation = aggregation
-        self.dirichlet = dirichlet
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
         self.min_samples_leaf = min_samples_leaf
@@ -97,14 +84,92 @@ class TreeBase(MultiOutputMixin, BaseEstimator, metaclass=ABCMeta):
         return get_nodes(self._tree)
 
 
-class TreeBinaryClassifier(ClassifierMixin, TreeBase):
+class TreeClassifier(ClassifierMixin, TreeBase):
     def __init__(
         self,
         *,
         n_bins,
         n_classes,
-        criterion="gini",
-        loss="log",
+        criterion,
+        loss,
+        step,
+        aggregation,
+        dirichlet,
+        max_depth,
+        min_samples_split,
+        min_samples_leaf,
+        categorical_features,
+        max_features,
+        random_state,
+        verbose=0,
+    ):
+        super().__init__(
+            n_bins=n_bins,
+            criterion=criterion,
+            loss=loss,
+            step=step,
+            aggregation=aggregation,
+            max_depth=max_depth,
+            min_samples_split=min_samples_split,
+            min_samples_leaf=min_samples_leaf,
+            categorical_features=categorical_features,
+            max_features=max_features,
+            random_state=random_state,
+            verbose=verbose,
+        )
+        self.n_classes = n_classes
+        self.dirichlet = dirichlet
+
+    def fit(self, X, y, train_indices, valid_indices, sample_weights):
+        n_classes = self.n_classes
+        max_bins = self.n_bins - 1
+        # TODO: on obtiendra cette info via le binner qui est dans la foret
+        n_samples, n_features = X.shape
+        n_bins_per_feature = max_bins * np.ones(n_features)
+        n_bins_per_feature = n_bins_per_feature.astype(np.intp)
+
+        # Create the tree object, which is mostly a data container for the nodes
+        tree = Tree(n_features, n_classes)
+
+        # We build a tree context, that contains global information about
+        # the data, in particular the way we'll organize data into contiguous
+        # node indexes both for training and validation samples
+        tree_context = TreeContext(
+            X,
+            y,
+            sample_weights,
+            train_indices,
+            valid_indices,
+            self.n_classes,
+            self.n_bins - 1,
+            n_bins_per_feature,
+            self.max_features,
+            self.aggregation,
+            self.dirichlet,
+            self.step,
+        )
+
+        node_context = NodeContext(tree_context)
+        grow(tree, tree_context, node_context)
+        self._tree = tree
+        self._tree_context = tree_context
+        return self
+
+    def predict_proba(self, X):
+        proba = tree_predict_proba(
+            self._tree, X, self._tree_context.aggregation, self._tree_context.step
+        )
+        return proba
+
+
+class TreeRegressor(TreeBase, RegressorMixin):
+    def __init__(
+        self,
+        *,
+        n_bins,
+        n_classes,
+        criterion,
+        loss,
         step=1.0,
         aggregation=True,
         dirichlet=0.5,
